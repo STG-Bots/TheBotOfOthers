@@ -1,2 +1,3 @@
 # TheOthersBot
-This bot grouped ideas from others and not that would collaborate to build a community friendly discord bot
+#### Main languages [IT/ENG]  
+This bot groupe ideas from others, that would collaborate to build a community friendly discord bot
