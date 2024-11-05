@@ -1,0 +1,22 @@
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require("discord.js");
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('avatar')
+        .setDescription(`Display the avatar of a user`)
+        .addUserOption(option => option.setName('user').setDescription('The user to display the avatar').setRequired(true)),
+        memberPermissions: [],
+        botPermissions: [],
+    async execute(interaction) {
+        const user = interaction.options.getUser('user');
+        await interaction.reply({
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle('Avatar')
+                    .setDescription(`${user.globalName}'s avatar`)
+                    .setImage(`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.webp?size=2048`)
+                    .setTimestamp()
+                    .setColor('#d47f3d')
+            ]
+        });
+    }
+}

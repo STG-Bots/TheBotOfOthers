@@ -1,0 +1,80 @@
+const { PermissionsBitField, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const tickets = require('../../../schemas/tickets');
+const ticketsConfigs = require('../../../functions/ticketsConfigs');
+
+module.exports = {
+    id: "test-component",
+    memberPermissions: [],
+    botPermissions: [
+        PermissionsBitField.Flags.ManageChannels,
+    ],
+    async execute(interaction) {
+        // Divide l'id del componente in 3 e poi verifica se esiste il nome del ticket
+        let ticketName = interaction.customId.split('-')[2];
+        // Se non esiste prende il valore dato dall'interazione con il menu
+        !ticketName ? ticketName = interaction.values[0] : null;
+        if (!ticketName) return interaction.deferUpdate();
+        const ticketConfig = ticketsConfigs.find(config => config.name == ticketName && config.guildid == interaction.guild.id);
+        if (!ticketConfig) return interaction.reply({ content: "Ticket non disponibile", ephemeral: true });
+
+        const userTickets = await tickets.find({ guildid: interaction.guild.id, name: ticketName, userid: interaction.member.user.id });
+
+        if (ticketConfig.maxtickets != -1 && userTickets.length >= ticketConfig.maxtickets) return interaction.reply({ content: "Non puoi aprire altri ticket", ephemeral: true });
+
+        const newTicketChannel = await interaction.guild.channels.create({
+            name: `${ticketConfig.opencategory.prefix || ticketName}-${interaction.member.user.username}`,
+            type: ChannelType.GuildText,
+            parent: ticketConfig.opencategory.id,
+            permissionOverwrites: [
+                {
+                    id: interaction.guild.roles.everyone,
+                    deny: [PermissionsBitField.Flags.ViewChannel],
+                },
+                {
+                    id: interaction.member.user.id,
+                    allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
+                },
+                ...ticketConfig.staffroles.map(role => interaction.guild.roles.cache.get(role) ? ({ id: role, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }) : null).filter(r => r),
+                ...ticketConfig.adminstaffroles.map(role => interaction.guild.roles.cache.get(role) ? ({ id: role, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }) : null).filter(r => r)
+            ]
+        });
+
+        await tickets.create({
+            guildid: interaction.guild.id,
+            name: ticketName,
+            channelid: newTicketChannel.id,
+            userid: interaction.member.user.id,
+            status: true
+        });
+
+        newTicketChannel.send({
+            content: `<@${interaction.member.user.id}>${ticketConfig.adminstaffroles.map(role => role ? `<@&${role}>` : '').join('')}${ticketConfig.staffroles.map(role => role ? `<@&${role}>` : '').join('')}`
+        }).then(msg => msg.delete().catch(() => { }));
+
+        newTicketChannel.send({
+            content: "",
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle(ticketConfig.ipanel.title)
+                    .setDescription(ticketConfig.ipanel.description)
+                    .setColor(ticketConfig.ipanel.color)
+                    .setFooter({ text: `Tickets by ${interaction.guild.members.me.user.username}`, iconURL: `https://cdn.discordapp.com/avatars/${interaction.guild.members.me.user.id}/${interaction.guild.members.me.user.avatar}.png?size=64` })
+            ],
+            components: [
+                new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`ticket-close`)
+                            .setLabel(ticketConfig.ipanel.buttons.close.label)
+                            .setStyle(ticketConfig.ipanel.buttons.close.style),
+                    )
+
+            ]
+        });
+
+        await interaction.reply({
+            content: `Ticket <#${newTicketChannel.id}> aperto con successo!`,
+            ephemeral: true
+        });
+    }
+}
