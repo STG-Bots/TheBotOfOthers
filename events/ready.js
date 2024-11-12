@@ -15,7 +15,7 @@ module.exports = {
         await mongoose.connect(mongouri);
 
         var ac = [
-            { name: 'Community', type: ActivityType.Watching },
+            { name: 'Communities', type: ActivityType.Watching },
         ];
         let i = 0;
         client.user.setPresence({ activities: [ac[i]] });
